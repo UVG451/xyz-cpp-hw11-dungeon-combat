@@ -1,0 +1,5 @@
+BasedOnStyle: Microsoft
+ColumnLimit: 110
+IndentWidth: 4
+BreakBeforeBraces: Allman
+SortIncludes: Never
