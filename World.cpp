@@ -46,7 +46,7 @@ World::World(unsigned seed, Log log) : log_(std::move(log)), random_(seed)
 
 bool World::walkable(Cell cell) const
 {
-    return interior(cell) && map_[index(cell)] == Tile::Floor;
+    return interior(cell) && !walls_[index(cell)];
 }
 
 World::Distances World::distances(Cell start, bool avoidEnemies) const
@@ -78,8 +78,10 @@ World::Distances World::distances(Cell start, bool avoidEnemies) const
 void World::generate()
 {
     player_.cell = Start;
-    map_.fill(Tile::Wall);
-    map_[index(Start)] = Tile::Floor;
+    for (int y = 0; y < Height; ++y)
+        for (int x = 0; x < Width; ++x)
+            walls_[index({x, y})].emplace(Cell{x, y});
+    walls_[index(Start)].reset();
     std::vector<Cell> path{Start};
     while (!path.empty())
     {
@@ -99,8 +101,8 @@ void World::generate()
         }
         const Cell middle = cell + *nextStep;
         const Cell next = middle + *nextStep;
-        map_[index(middle)] = Tile::Floor;
-        map_[index(next)] = Tile::Floor;
+        walls_[index(middle)].reset();
+        walls_[index(next)].reset();
         path.push_back(next);
     }
 
@@ -109,7 +111,7 @@ void World::generate()
     for (int y = 1; y < Height - 1; ++y)
         for (int x = 1; x < Width - 1; ++x)
             if ((x % 2) != (y % 2) && gap(random_) == 0)
-                map_[index({x, y})] = Tile::Floor;
+                walls_[index({x, y})].reset();
 
     const auto distance = distances(Start);
     exit_ = Start;

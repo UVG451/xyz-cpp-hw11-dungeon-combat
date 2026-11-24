@@ -3,6 +3,7 @@
 #include <array>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <random>
 #include <string_view>
 #include <vector>
@@ -98,10 +99,19 @@ enum class Action
     Wait,
     Heal
 };
-enum class Tile
+class Wall
 {
-    Wall,
-    Floor
+  public:
+    explicit Wall(Cell cell) : cell_(cell)
+    {
+    }
+    Cell cell() const
+    {
+        return cell_;
+    }
+
+  private:
+    Cell cell_;
 };
 using Log = std::function<void(std::string_view)>;
 
@@ -111,6 +121,10 @@ class World
     World(unsigned seed, Log log);
     bool act(Action action, Cell direction = {0, 0});
     bool walkable(Cell cell) const;
+    const auto &walls() const
+    {
+        return walls_;
+    }
     bool exitOpen() const;
     bool verify() const;
 
@@ -164,7 +178,7 @@ class World
 
     Log log_;
     std::mt19937 random_;
-    std::array<Tile, Width * Height> map_{};
+    std::array<std::optional<Wall>, Width * Height> walls_{};
     Character player_{{1, 1}, {30, 1}};
     Cell exit_{1, 1};
     Enemies enemies_;

@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <optional>
 #include <queue>
+#include <stdexcept>
 #include <string>
 
 namespace
@@ -60,10 +61,11 @@ void render(sf::RenderWindow &window, const sf::Font &font, const dungeon::World
 
     for (int y = 0; y < dungeon::Height; ++y)
         for (int x = 0; x < dungeon::Width; ++x)
-        {
-            const bool floor = world.walkable({x, y});
-            tile(window, {x, y}, 26, floor ? sf::Color{29, 44, 59} : sf::Color{45, 62, 84});
-        }
+            if (world.walkable({x, y}))
+                tile(window, {x, y}, 26, {29, 44, 59});
+    for (const auto &wall : world.walls())
+        if (wall)
+            tile(window, wall->cell(), 26, {45, 62, 84});
 
     tile(window, world.exit(), 20, world.exitOpen() ? Accent : sf::Color{202, 149, 72});
     for (const auto kit : world.pickups())
@@ -120,6 +122,20 @@ bool selfTest()
     Health health{10, 2};
     if (health.hit(5) != 3 || health.heal(100) != 3 || health.hit(1) != 1)
         return false;
+
+    World recovery(18, [](std::string_view) {});
+    const Cell originalPosition = recovery.player();
+    try
+    {
+        recovery.act(Action::Move, {1, 1});
+        return false;
+    }
+    catch (const std::invalid_argument &)
+    {
+        if (recovery.turn() != 0 || !(recovery.player() == originalPosition) || !recovery.act(Action::Wait) ||
+            recovery.turn() != 1)
+            return false;
+    }
 
     World world(18, [](std::string_view) {});
     constexpr std::array<Cell, 4> directions{{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}};
@@ -264,13 +280,21 @@ int main(int argc, char *argv[])
                     case sf::Keyboard::H:
                         acted = world->act(Action::Heal);
                         break;
+                    case sf::Keyboard::F9:
+                        // Exercise the invalid-input recovery path on demand.
+                        world->act(Action::Move, {1, 1});
+                        break;
                     default:
                         break;
                     }
                 }
-                catch (const std::logic_error &error)
+                catch (const std::invalid_argument &error)
                 {
                     log.write(LogLevel::Warning, "game", error.what());
+                }
+                catch (const std::logic_error &error)
+                {
+                    log.write(LogLevel::Error, "game", error.what());
                     world.reset();
                 }
                 if (acted)
